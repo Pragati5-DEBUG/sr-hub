@@ -22,7 +22,7 @@ def get_base64_video(video_path):
 video_path = "background.mp4"
 if not os.path.exists(video_path):
     import shutil
-    original_video = r"C:\Users\user\Downloads\istockphoto-2160507892-640_adpp_is.mp4"
+    original_video = r"C:\Users\user\Downloads\90877-629483574_small.mp4"
     shutil.copy2(original_video, video_path)
 
 # Get base64 encoded video
@@ -166,6 +166,10 @@ st.markdown("### Super Resolution Image Comparison Dashboard")
 # Create two columns for image upload
 col1, col2 = st.columns(2)
 
+# Initialize variables to store images
+img1_array = None
+img2_array = None
+
 def normalize_array(arr):
     """Normalize array to 0-255 range and convert to uint8"""
     if arr.dtype == np.float64 or arr.dtype == np.float32:
@@ -181,41 +185,25 @@ def normalize_array(arr):
 
 with col1:
     st.header("Original Image")
-    image1 = st.file_uploader("Upload original low-resolution image", type=['png', 'jpg', 'jpeg', 'tif', 'tiff'], key="img1")
-    st.markdown('<p class="file-limitation-text">Limit 200MB per file • PNG, JPG, JPEG, TIF, TIFF</p>', unsafe_allow_html=True)
-    if image1 is not None:
+    st.markdown("### Enter Coordinates")
+    lat1 = st.number_input("Latitude", value=31.7075, min_value=-90.0, max_value=90.0, step=0.0001, key="lat1", format="%.4f")
+    lon1 = st.number_input("Longitude", value=76.5275, min_value=-180.0, max_value=180.0, step=0.0001, key="lon1", format="%.4f")
+    
+    # Add a button to load the image
+    if st.button("Load Original Image", key="load1"):
         try:
-            # Check if it's a TIFF file
-            if image1.type == 'image/tiff':
-                # Read TIFF file
-                tiff_bytes = image1.read()
-                img1_array = tifffile.imread(io.BytesIO(tiff_bytes))
-                # Normalize and convert the array
-                img1_array = normalize_array(img1_array)
-                # Convert to PIL Image
-                if img1_array.ndim == 2:  # If grayscale
-                    img1 = Image.fromarray(img1_array, mode='L')
-                elif img1_array.ndim == 3:  # If RGB/RGBA
-                    if img1_array.shape[2] > 3:  # If more than 3 channels
-                        img1_array = img1_array[:,:,:3]  # Take only RGB channels
-                    img1 = Image.fromarray(img1_array, mode='RGB')
-            else:
-                img1 = Image.open(image1)
-            
-            st.image(img1, use_container_width=True)
-            # Image details
-            st.markdown("### Original Image Details")
-            st.write(f"Resolution: {img1.size[0]} × {img1.size[1]} pixels")
-            st.write(f"Color Mode: {img1.mode}")
-            st.write(f"File Format: {image1.type}")
+            st.info(f"Selected coordinates: {lat1}°N, {lon1}°E")
+            img1_loaded = True
         except Exception as e:
-            st.error(f"Error loading image: {str(e)}")
-            img1 = None
+            st.error(f"Error with coordinates: {str(e)}")
+            img1_loaded = False
 
 with col2:
     st.header("Super Resolution Result")
-    image2 = st.file_uploader("Upload super resolution result", type=['png', 'jpg', 'jpeg', 'tif', 'tiff'], key="img2")
+    st.markdown("### Upload Drone Image")
+    image2 = st.file_uploader("Upload high-resolution drone image", type=['png', 'jpg', 'jpeg', 'tif', 'tiff'], key="img2")
     st.markdown('<p class="file-limitation-text">Limit 200MB per file • PNG, JPG, JPEG, TIF, TIFF</p>', unsafe_allow_html=True)
+    
     if image2 is not None:
         try:
             # Check if it's a TIFF file
@@ -241,50 +229,55 @@ with col2:
             st.write(f"Resolution: {img2.size[0]} × {img2.size[1]} pixels")
             st.write(f"Color Mode: {img2.mode}")
             st.write(f"File Format: {image2.type}")
+            img2_loaded = True
         except Exception as e:
             st.error(f"Error loading image: {str(e)}")
-            img2 = None
+            img2_loaded = False
+
+# Add a map to visualize the selected coordinates
+st.markdown("### Selected Location on Map")
+st.markdown(f"""
+<div style='background: rgba(13, 27, 52, 0.4); padding: 20px; border-radius: 15px; backdrop-filter: blur(10px);'>
+    <iframe width="100%" height="400" frameborder="0" scrolling="no" marginheight="0" marginwidth="0" 
+    src="https://www.openstreetmap.org/export/embed.html?bbox={lon1-0.1}%2C{lat1-0.1}%2C{lon1+0.1}%2C{lat1+0.1}&amp;layer=mapnik&amp;marker={lat1}%2C{lon1}"
+    style="border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 10px;"></iframe>
+</div>
+""", unsafe_allow_html=True)
 
 # Comparison metrics
 st.markdown("---")
-st.header("SR Analysis Metrics")
+st.markdown('<h2 class="rgb-title">SR Analysis Metrics</h2>', unsafe_allow_html=True)
 
-if image1 is not None and image2 is not None:
+# Check if both images are loaded
+if 'img1_loaded' in locals() and 'img2_loaded' in locals() and img1_loaded and img2_loaded:
     # Create three columns for RGB metrics
     metric_col1, metric_col2, metric_col3 = st.columns(3)
     
-    # Convert images to RGB arrays
-    img1_array = np.array(img1.convert('RGB'))
-    img2_array = np.array(img2.convert('RGB'))
-    
-    # Calculate average RGB values
-    avg_rgb1 = np.mean(img1_array, axis=(0,1))
-    avg_rgb2 = np.mean(img2_array, axis=(0,1))
-    
+    # Placeholder metrics for now
     with metric_col1:
-        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        st.markdown('<div class="metric-card red-metric">', unsafe_allow_html=True)
         st.metric(
             label="Red Channel",
-            value=f"{avg_rgb2[0]:.1f}",
-            delta=f"{avg_rgb2[0] - avg_rgb1[0]:.1f} from original"
+            value="Pending",
+            delta="Pending"
         )
         st.markdown('</div>', unsafe_allow_html=True)
 
     with metric_col2:
-        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        st.markdown('<div class="metric-card green-metric">', unsafe_allow_html=True)
         st.metric(
             label="Green Channel",
-            value=f"{avg_rgb2[1]:.1f}",
-            delta=f"{avg_rgb2[1] - avg_rgb1[1]:.1f} from original"
+            value="Pending",
+            delta="Pending"
         )
         st.markdown('</div>', unsafe_allow_html=True)
 
     with metric_col3:
-        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        st.markdown('<div class="metric-card blue-metric">', unsafe_allow_html=True)
         st.metric(
             label="Blue Channel",
-            value=f"{avg_rgb2[2]:.1f}",
-            delta=f"{avg_rgb2[2] - avg_rgb1[2]:.1f} from original"
+            value="Pending",
+            delta="Pending"
         )
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -296,50 +289,13 @@ if image1 is not None and image2 is not None:
     )
 
     if analysis_type == "RGB Distribution":
-        # Show RGB distribution
-        st.write("RGB Value Distribution")
-        
-        # Create columns for each image
-        dist_col1, dist_col2 = st.columns(2)
-        
-        with dist_col1:
-            st.write("Original Image RGB Distribution")
-            for channel, color in [('Red', 'red'), ('Green', 'green'), ('Blue', 'blue')]:
-                channel_idx = 0 if channel=='Red' else 1 if channel=='Green' else 2
-                st.write(f"{channel} Channel")
-                st.bar_chart(np.histogram(img1_array[:,:,channel_idx], bins=50)[0])
-        
-        with dist_col2:
-            st.write("SR Result RGB Distribution")
-            for channel, color in [('Red', 'red'), ('Green', 'green'), ('Blue', 'blue')]:
-                channel_idx = 0 if channel=='Red' else 1 if channel=='Green' else 2
-                st.write(f"{channel} Channel")
-                st.bar_chart(np.histogram(img2_array[:,:,channel_idx], bins=50)[0])
-
+        st.info("Image analysis will be available once the satellite imagery is loaded.")
     elif analysis_type == "Color Histogram":
-        # Show color histograms
-        hist_col1, hist_col2 = st.columns(2)
-        with hist_col1:
-            st.write("Original Image RGB Histogram")
-            for channel, color in [('Red', 'red'), ('Green', 'green'), ('Blue', 'blue')]:
-                st.bar_chart(np.histogram(img1_array[:,:,0 if channel=='Red' else 1 if channel=='Green' else 2], bins=50)[0])
-        
-        with hist_col2:
-            st.write("SR Result RGB Histogram")
-            for channel, color in [('Red', 'red'), ('Green', 'green'), ('Blue', 'blue')]:
-                st.bar_chart(np.histogram(img2_array[:,:,0 if channel=='Red' else 1 if channel=='Green' else 2], bins=50)[0])
-
+        st.info("Histogram analysis will be available once the satellite imagery is loaded.")
     elif analysis_type == "Channel Comparison":
-        # Show channel-wise comparison
-        st.write("Channel-wise Comparison")
-        for channel, color in [('Red', 'red'), ('Green', 'green'), ('Blue', 'blue')]:
-            channel_idx = 0 if channel=='Red' else 1 if channel=='Green' else 2
-            diff = np.abs(img2_array[:,:,channel_idx] - img1_array[:,:,channel_idx])
-            st.write(f"{channel} Channel Difference")
-            st.bar_chart(np.histogram(diff, bins=50)[0])
-
+        st.info("Channel comparison will be available once the satellite imagery is loaded.")
 else:
-    st.info("Please upload both the original image and its super resolution result to see RGB analysis metrics")
+    st.info("Please load both the original image and its super resolution result to see RGB analysis metrics")
 
 # Close the content-overlay div
 st.markdown(end_div, unsafe_allow_html=True) 
