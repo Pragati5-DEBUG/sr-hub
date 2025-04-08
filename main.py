@@ -22,7 +22,7 @@ def get_base64_video(video_path):
 video_path = "background.mp4"
 if not os.path.exists(video_path):
     import shutil
-    original_video = r"C:\Users\user\Downloads\istockphoto-2160507892-640_adpp_is.mp4"
+    original_video = r"90877-629483574_small.mp4"
     shutil.copy2(original_video, video_path)
 
 # Get base64 encoded video
